@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 26.2 Web Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a2e; font-family: sans-serif; }
+        #canvas3d { width: 100vw; height: 100vh; display: block; }
+        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; text-shadow: 2px 2px black; pointer-events: none; z-index: 10; }
+        h1 { margin: 0; font-size: 28px; color: #55ff55; }
+        .version { font-size: 16px; color: #aaa; }
+        .controls { margin-top: 10px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; }
+    </style>
+    <!-- Use stable UNPKG CDN for Three.js engine and OrbitControls -->
+    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com"></script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h1>Minecraft 26.2 Web Edition</h1>
+        <div class="version">Engine: Compatibility Mode v26.2</div>
+        <div class="controls">
+            <strong>Controls:</strong><br>
+            • Drag Mouse (Left Click): Look around / Rotate view<br>
+            • Keys W, A, S, D: Move around the world<br>
+            • Double Click Screen: Place "26.2 Sulfur Cube"
+        </div>
+    </div>
+
+    <canvas id="canvas3d"></canvas>
+
+    <script>
+        // 1. Initialize Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e); // Night sky
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // 2. Add Orbit Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+        // 3. Add Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirLight.position.set(10, 20, 15);
+        scene.add(dirLight);
+
+        // 4. Create World Blocks
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const grassMaterial = new THREE.MeshLambertMaterial({ color: 0x3b7a57 });
+        const sulfurMaterial = new THREE.MeshStandardMaterial({ color: 0x39ff14, roughness: 0.1 });
+
+        // Generate Ground
+        for (let x = -8; x <= 8; x++) {
+            for (let z = -8; z <= 8; z++) {
+                const cube = new THREE.Mesh(geometry, grassMaterial);
+                cube.position.set(x, -0.5, z);
+                scene.add(cube);
+            }
+        }
+
+        // Spawn Camera Position
+        camera.position.set(0, 3, 8);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        // 5. Keyboard Movement
+        let keys = { w: false, a: false, s: false, d: false };
+        window.addEventListener('keydown', (e) => { if(e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup', (e) => { if(e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; });
+
+        // 6. Double Click to Place Block
+        window.addEventListener('dblclick', () => {
+            const block = new THREE.Mesh(geometry, sulfurMaterial);
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            
+            block.position.copy(camera.position).addScaledVector(dir, 4);
+            block.position.x = Math.round(block.position.x);
+            block.position.y = Math.round(block.position.y);
+            block.position.z = Math.round(block.position.z);
+            
+            scene.add(block);
+        });
+
+        // 7. Game Loop
+        const speed = 0.15;
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const side = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            forward.y = 0; forward.normalize();
+            side.y = 0; side.normalize();
+
+            if (keys.w) { camera.position.addScaledVector(forward, speed); controls.target.addScaledVector(forward, speed); }
+            if (keys.s) { camera.position.addScaledVector(forward, -speed); controls.target.addScaledVector(forward, -speed); }
+            if (keys.a) { camera.position.addScaledVector(side, -speed); controls.target.addScaledVector(side, -speed); }
+            if (keys.d) { camera.position.addScaledVector(side, speed); controls.target.addScaledVector(side, speed); }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
