@@ -1,248 +1,153 @@
 <!DOCTYPE html>
 <html>
-  <head>
+ <html lang="en">
+<head>
+    <meta charset="UTF-8">
     <title>Minecraft 26.2 Web Edition</title>
-    <meta name="darkreader-lock">
-    <script>
-      window.startLoad = Date.now()
-      // g663 fix: forbid change of string prototype
-      Object.defineProperty(String.prototype, 'format', {
-        writable: false,
-        configurable: false
-      });
-      Object.defineProperty(String.prototype, 'replaceAll', {
-        writable: false,
-        configurable: false
-      });
-    </script>
-    <script>
-      // NextConsole: mount on <html>, not <body> — body.rotated uses transform and breaks fixed UI.
-      (function () {
-        var root = document.createElement('div')
-        root.id = 'next-console-root'
-        document.documentElement.appendChild(root)
-      })()
-    </script>
-    <!-- // #region initial loader -->
-    <script async>
-      const loadingDiv = /* html */ `
-      <div class="initial-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10001; transition: opacity 0.3s ease-in-out; opacity: 1;">
-        <div class="initial-loader-background" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; z-index: -1; background-image: url('./loading-bg.jpg');"></div>
-        <div class="initial-loader-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1;">
-          <div class="initial-loader-loading-title">Loading...</div>
-          <div class="initial-loader-loading-subtitle">Minecraft 26.2 Web Edition</div>
-        </div>
-        <div class="initial-loader-error" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; z-index: 2;">
-          <h1 class="initial-loader-error-title">Failed to load</h1>
-          <p class="initial-loader-error-subtitle error-subtitle">Check your connection and refresh the page</p>
-          <p class="initial-loader-error-advanced advanced-info"></p>
-          <p class="initial-loader-ios-warning ios-warning">Only iOS 15+ is supported due to performance optimizations</p>
-        </div>
-      </div>
-`
-      const insertLoadingDiv = () => {
-          const loadingDivElem = document.createElement('div')
-          loadingDivElem.innerHTML = loadingDiv
-          const loader = loadingDivElem.querySelector('.initial-loader')
-          if (loader) {
-            loader.addEventListener('transitionend', (e) => {
-              if (e.target === loader && !loader.dataset.error) {
-                loader.remove()
-              }
-            })
-          }
-          if (!window.pageLoaded) {
-            document.documentElement.appendChild(loadingDivElem)
-          }
-
-          // iOS version detection
-          const getIOSVersion = () => {
-            const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
-            return match ? parseInt(match[1], 10) : null;
-          }
-
-          // load error handling
-          const onError = (errorOrMessage, log = false) => {
-            let message = errorOrMessage instanceof Error ? (errorOrMessage.stack ?? errorOrMessage.message) : errorOrMessage
-            if (log) console.log(message)
-            if (typeof message !== 'string') message = String(message)
-            const loader = document.querySelector('.initial-loader')
-            if (!loader || loader.dataset.error) return
-
-            const errorDiv = loader.querySelector('.initial-loader-error')
-            const contentDiv = loader.querySelector('.initial-loader-content')
-            if (contentDiv) contentDiv.style.display = 'none'
-            if (errorDiv) errorDiv.style.display = 'flex'
-            loader.dataset.error = '1'
-
-            const [errorMessage, ...errorStack] = message.split('\n')
-            const subtitle = errorDiv?.querySelector('.error-subtitle')
-            const advancedInfo = errorDiv?.querySelector('.advanced-info')
-            if (subtitle) subtitle.textContent = errorMessage || 'An unexpected error occurred'
-            if (advancedInfo) advancedInfo.textContent = errorStack.join('\n')
-
-            const iosVersion = getIOSVersion()
-            if (iosVersion !== null && iosVersion < 15) {
-              const iosWarning = errorDiv?.querySelector('.ios-warning')
-              if (iosWarning) iosWarning.style.display = 'block'
-            }
-
-            if (window.navigator.maxTouchPoints > 1) window.location.hash = '#dev'
-            if (window.navigator.serviceWorker && loader.style.opacity !== '0') {
-              window.navigator.serviceWorker.getRegistrations().then(registrations => {
-                registrations.forEach(registration => registration.unregister())
-              })
-            }
-            window.lastError = errorOrMessage instanceof Error ? errorOrMessage : new Error(errorOrMessage)
-          }
-          window.addEventListener('unhandledrejection', (e) => onError(e.reason, true))
-          window.addEventListener('error', (e) => onError(e.error ?? e.message))
-        }
-        insertLoadingDiv()
-        document.addEventListener('DOMContentLoaded', () => {
-          // move loading div to the end of body
-          const loadingDivElem = document.querySelector('.initial-loader');
-          const newContainer = document.body; // replace with your new container
-          if (loadingDivElem) newContainer.appendChild(loadingDivElem);
-        })
-    </script>
-    <script type="module" async>
-      const parseLastErrorStack = () => {
-        if (window.location.hash === '#dev') {
-          // NextConsole: loaded once from src/loadDevConsole.ts (avoid double init with devReload)
-          Promise.all([import('https://cdn.skypack.dev/stacktrace-gps'), import('https://cdn.skypack.dev/error-stack-parser')]).then(async ([{ default: StackTraceGPS }, { default: ErrorStackParser }]) => {
-            if (!window.lastError) return
-
-            let stackFrames = [];
-            if (window.lastError instanceof Error) {
-              stackFrames = ErrorStackParser.parse(window.lastError);
-            }
-            console.log('stackFrames', stackFrames)
-            const gps = new StackTraceGPS()
-            const mappedFrames = await Promise.all(
-              stackFrames.map(frame => gps.pinpoint(frame))
-            );
-            console.log('mappedFrames', mappedFrames)
-
-            const stackTrace = mappedFrames
-              .map(frame => `at ${frame.functionName} (${frame.fileName}:${frame.lineNumber}:${frame.columnNumber})`)
-              .join('\n');
-            console.log('stackTrace', stackTrace)
-          })
-        }
-      }
-      parseLastErrorStack()
-      window.addEventListener('hashchange', (e) => {
-        setTimeout(() => {
-          parseLastErrorStack()
-        })
-      })
-    </script>
     <style>
-      @font-face {
-        font-family: mojangles;
-        src: url('./mojangles.ttf');
-      }
-      html {
-        background: black;
-      }
-      .initial-loader {
-        --font-size: 20px;
-        overflow: hidden;
-      }
-      .initial-loader-background {
-        filter: brightness(0.5) blur(6px);
-        transform: scale(1.04);
-      }
-      .initial-loader-loading-title {
-        color: white;
-        font-family: mojangles, monospace;
-        font-weight: 500;
-        font-size: calc(var(--font-size) * 1.2);
-        text-align: center;
-        text-shadow: 2px 2px #000000;
-      }
-      .initial-loader-loading-subtitle {
-        color: rgb(176, 176, 176);
-        font-family: mojangles, monospace;
-        font-weight: 500;
-        font-size: var(--font-size);
-        margin-top: 8px;
-        text-align: center;
-        text-shadow: 2px 2px #000000;
-      }
-      .initial-loader-error-title {
-        color: #ff6b6b;
-        font-family: mojangles, monospace;
-        font-weight: 500;
-        font-size: 24px;
-        text-align: center;
-        text-shadow: 2px 2px #000000;
-        margin: 0 0 12px;
-      }
-      .initial-loader-error-subtitle {
-        color: white;
-        font-family: mojangles, monospace;
-        font-weight: 500;
-        font-size: 12px;
-        text-align: center;
-        text-shadow: 2px 2px #000000;
-        margin: 0;
-        max-width: min(560px, 90vw);
-        word-break: break-word;
-      }
-      .initial-loader-error-advanced {
-        color: #808080;
-        font-family: mojangles, monospace;
-        font-weight: 500;
-        font-size: 10px;
-        text-align: center;
-        margin: 14px 0 0;
-        max-width: min(560px, 90vw);
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      .initial-loader-ios-warning {
-        color: rgb(255, 100, 100);
-        font-family: mojangles, monospace;
-        font-size: calc(var(--font-size) * 0.6);
-        margin-top: 10px;
-        text-align: center;
-        display: none;
-      }
-      @media screen and (min-width: 550px) {
-        .initial-loader {
-          --font-size: 30px;
-        }
-      }
-      @media screen and (min-width: 950px) {
-        .initial-loader {
-          --font-size: 50px;
-        }
-      }
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
+        #canvas3d { width: 100vw; height: 100vh; display: block; }
+        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; text-shadow: 2px 2px black; pointer-events: none; }
+        h1 { margin: 0; font-size: 28px; color: #55ff55; }
+        .version { font-size: 16px; color: #aaa; }
+        .controls { margin-top: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: white; transform: translate(-50%, -50%); mix-blend-mode: difference; pointer-events: none; }
     </style>
-    <!-- // #endregion -->
-    <!-- <script type="module">
-      window.loadPluginScript = async ({ pluginName, script }) => {
-        window.loadedPlugins[pluginName] = await import(script)
-      }
-    </script> -->
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="514b5fce-6944-4ca3-a463-ce12d77b5ae0"></script>
-    <title>Minecraft Web Client</title>
-    <!-- <link rel="canonical" href="https://mcraft.fun"> -->
-    <meta name="description" content="Minecraft Java Edition Client in Browser — Full Multiplayer Support, Server Connect, Offline Play — Join real Minecraft servers">
-    <meta name="keywords" content="Play, Minecraft, Online, Web, Java, Server, Single player, Javascript, PrismarineJS, Voxel, WebGL, Three.js">
-    <meta name="date" content="2024-07-11" scheme="YYYY-MM-DD">
-    <meta name="language" content="English">
-    <meta name="theme-color" content="#349474">
-    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'>
-    <meta property="og:title" content="Minecraft Web Client" />
-    <meta property="og:type" content="website" />
-    <meta name="format-detection" content="telephone=no">
-  </head>
-  <body>
-    <div id="react-root"></div>
-    <div id="ui-root"></div>
-    <!-- inject script -->
-  </body>
+    <!-- Include Three.js 3D Engine -->
+    <script src="https://cloudflare.com"></script>
+</head>
+<body>
+
+    <div id="crosshair"></div>
+    <div id="ui-layer">
+        <h1>Minecraft 26.2 Web Edition</h1>
+        <div class="version">Engine: Chaos Cubed Web Simulator</div>
+        <div class="controls">
+            Controls:<br>
+            • Click Screen: Lock mouse to look around (Esc to exit)<br>
+            • Mouse Move: Turn camera view<br>
+            • Keys W, A, S, D: Move Forward / Left / Backward / Right<br>
+            • Left Click: Place "26.2 Sulfur Cube"
+        </div>
+    </div>
+
+    <canvas id="canvas3d"></canvas>
+
+    <script>
+        // 1. Initialize 3D Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111122); // Dark chaos sky
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // 2. Add Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(10, 20, 15);
+        scene.add(directionalLight);
+
+        // 3. Create Block Materials
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        
+        // Base grass block
+        const grassMaterial = new THREE.MeshLambertMaterial({ color: 0x22aa33 });
+        // 26.2 New Block: Sulfur Cube (Neon Green Glow)
+        const sulfurMaterial = new THREE.MeshLambertMaterial({ color: 0x33ff55, emissive: 0x114411 });
+
+        // Generate a 15x15 ground
+        for (let x = -7; x <= 7; x++) {
+            for (let z = -7; z <= 7; z++) {
+                const cube = new THREE.Mesh(geometry, grassMaterial);
+                cube.position.set(x, -0.5, z);
+                scene.add(cube);
+            }
+        }
+
+        camera.position.set(0, 2, 5);
+
+        // 4. Player Movement and Mouse Lock
+        let move = { forward: false, backward: false, left: false, right: false };
+        let yaw = 0, pitch = 0;
+
+        document.body.addEventListener('click', () => {
+            document.body.requestPointerLock();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body) {
+                yaw -= e.movementX * 0.002;
+                pitch -= e.movementY * 0.002;
+                pitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, pitch));
+                
+                const qx = new THREE.Quaternion();
+                qx.setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
+                const qy = new THREE.Quaternion();
+                qy.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                
+                camera.quaternion.copy(qy).multiply(qx);
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'W') move.forward = true;
+            if (e.key === 's' || e.key === 'S') move.backward = true;
+            if (e.key === 'a' || e.key === 'A') move.left = true;
+            if (e.key === 'd' || e.key === 'D') move.right = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'W') move.forward = false;
+            if (e.key === 's' || e.key === 'S') move.backward = false;
+            if (e.key === 'a' || e.key === 'A') move.left = false;
+            if (e.key === 'd' || e.key === 'D') move.right = false;
+        });
+
+        // 5. Mouse Click: Place 26.2 Sulfur Cube in front
+        window.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement === document.body && e.button === 0) {
+                const sulfurCube = new THREE.Mesh(geometry, sulfurMaterial);
+                const forwardDir = new THREE.Vector3();
+                camera.getWorldDirection(forwardDir);
+                
+                sulfurCube.position.copy(camera.position).addScaledVector(forwardDir, 3);
+                
+                // Snap to Grid
+                sulfurCube.position.x = Math.round(sulfurCube.position.x);
+                sulfurCube.position.y = Math.round(sulfurCube.position.y);
+                sulfurCube.position.z = Math.round(sulfurCube.position.z);
+                
+                scene.add(sulfurCube);
+            }
+        });
+
+        // 6. Game Loop (60 FPS)
+        const speed = 0.1;
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const frontVec = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const sideVec = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            frontVec.y = 0; frontVec.normalize();
+            sideVec.y = 0; sideVec.normalize();
+
+            if (move.forward) camera.position.addScaledVector(frontVec, speed);
+            if (move.backward) camera.position.addScaledVector(frontVec, -speed);
+            if (move.left) camera.position.addScaledVector(sideVec, -speed);
+            if (move.right) camera.position.addScaledVector(sideVec, speed);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
 </html>
