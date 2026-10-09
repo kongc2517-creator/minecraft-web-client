@@ -3,27 +3,28 @@
  <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minecraft 26.2 Web Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #11111d; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #canvas3d { width: 100vw; height: 100vh; display: block; }
-        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; text-shadow: 2px 2px black; pointer-events: none; }
-        h1 { margin: 0; font-size: 28px; color: #55ff55; }
-        .version { font-size: 16px; color: #aaa; }
-        .controls { margin-top: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; }
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: white; transform: translate(-50%, -50%); mix-blend-mode: difference; pointer-events: none; }
+        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none; z-index: 10; }
+        h1 { margin: 0; font-size: 32px; color: #55ff55; letter-spacing: 1px; }
+        .version { font-size: 16px; color: #ffaa00; font-weight: bold; margin-top: 5px; }
+        .controls { margin-top: 15px; background: rgba(0,0,0,0.65); padding: 15px; border-radius: 8px; border: 1px solid #444; font-size: 14px; line-height: 1.6; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: white; transform: translate(-50%, -50%); mix-blend-mode: difference; pointer-events: none; z-index: 5; }
     </style>
-    <!-- Include Three.js 3D Engine -->
-    <script src="https://cloudflare.com"></script>
+    <!-- Use stable UNPKG CDN for Three.js engine -->
+    <script src="https://unpkg.com"></script>
 </head>
 <body>
 
     <div id="crosshair"></div>
     <div id="ui-layer">
         <h1>Minecraft 26.2 Web Edition</h1>
-        <div class="version">Engine: Chaos Cubed Web Simulator</div>
+        <div class="version">Engine: Chaos Cubed Web Simulator v26.2</div>
         <div class="controls">
-            Controls:<br>
+            <strong>Controls:</strong><br>
             • Click Screen: Lock mouse to look around (Esc to exit)<br>
             • Mouse Move: Turn camera view<br>
             • Keys W, A, S, D: Move Forward / Left / Backward / Right<br>
@@ -36,107 +37,109 @@
     <script>
         // 1. Initialize 3D Scene
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111122); // Dark chaos sky
+        scene.background = new THREE.Color(0x1a1a2e); // Deep blue night sky
+        scene.fog = new THREE.FogExp2(0x1a1a2e, 0.05);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d') });
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
 
         // 2. Add Lights
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        directionalLight.position.set(10, 20, 15);
-        scene.add(directionalLight);
-
-        // 3. Create Block Materials
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
         
-        // Base grass block
-        const grassMaterial = new THREE.MeshLambertMaterial({ color: 0x22aa33 });
-        // 26.2 New Block: Sulfur Cube (Neon Green Glow)
-        const sulfurMaterial = new THREE.MeshLambertMaterial({ color: 0x33ff55, emissive: 0x114411 });
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(20, 40, 20);
+        scene.add(dirLight);
 
-        // Generate a 15x15 ground
-        for (let x = -7; x <= 7; x++) {
-            for (let z = -7; z <= 7; z++) {
+        // 3. Create 26.2 Blocks
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const grassMaterial = new THREE.MeshLambertMaterial({ color: 0x3b7a57 }); // Classic Grass Green
+        const sulfurMaterial = new THREE.MeshStandardMaterial({ color: 0x39ff14, roughness: 0.2, metalness: 0.1 }); // 26.2 Sulfur Stone
+
+        // Generate 16x16 Flat Ground
+        for (let x = -8; x <= 8; x++) {
+            for (let z = -8; z <= 8; z++) {
                 const cube = new THREE.Mesh(geometry, grassMaterial);
                 cube.position.set(x, -0.5, z);
                 scene.add(cube);
             }
         }
 
-        camera.position.set(0, 2, 5);
+        // Set Player Spawn Height
+        camera.position.set(0, 1.8, 6);
 
-        // 4. Player Movement and Mouse Lock
+        // 4. Movement Variables
         let move = { forward: false, backward: false, left: false, right: false };
         let yaw = 0, pitch = 0;
 
+        // Click to Lock Pointer
         document.body.addEventListener('click', () => {
             document.body.requestPointerLock();
         });
 
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
-                yaw -= e.movementX * 0.002;
-                pitch -= e.movementY * 0.002;
-                pitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, pitch));
+                yaw -= e.movementX * 0.0025;
+                pitch -= e.movementY * 0.0025;
+                pitch = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, pitch));
                 
-                const qx = new THREE.Quaternion();
-                qx.setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
-                const qy = new THREE.Quaternion();
-                qy.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                
+                const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
+                const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
                 camera.quaternion.copy(qy).multiply(qx);
             }
         });
 
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'w' || e.key === 'W') move.forward = true;
-            if (e.key === 's' || e.key === 'S') move.backward = true;
-            if (e.key === 'a' || e.key === 'A') move.left = true;
-            if (e.key === 'd' || e.key === 'D') move.right = true;
+            if (e.key.toLowerCase() === 'w') move.forward = true;
+            if (e.key.toLowerCase() === 's') move.backward = true;
+            if (e.key.toLowerCase() === 'a') move.left = true;
+            if (e.key.toLowerCase() === 'd') move.right = true;
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.key === 'w' || e.key === 'W') move.forward = false;
-            if (e.key === 's' || e.key === 'S') move.backward = false;
-            if (e.key === 'a' || e.key === 'A') move.left = false;
-            if (e.key === 'd' || e.key === 'D') move.right = false;
+            if (e.key.toLowerCase() === 'w') move.forward = false;
+            if (e.key.toLowerCase() === 's') move.backward = false;
+            if (e.key.toLowerCase() === 'a') move.left = false;
+            if (e.key.toLowerCase() === 'd') move.right = false;
         });
 
-        // 5. Mouse Click: Place 26.2 Sulfur Cube in front
+        // 5. Mouse Left Click: Place 26.2 Sulfur Cube
         window.addEventListener('mousedown', (e) => {
             if (document.pointerLockElement === document.body && e.button === 0) {
-                const sulfurCube = new THREE.Mesh(geometry, sulfurMaterial);
-                const forwardDir = new THREE.Vector3();
-                camera.getWorldDirection(forwardDir);
+                const block = new THREE.Mesh(geometry, sulfurMaterial);
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
                 
-                sulfurCube.position.copy(camera.position).addScaledVector(forwardDir, 3);
+                // Calculate position 3.5 units ahead
+                block.position.copy(camera.position).addScaledVector(dir, 3.5);
                 
-                // Snap to Grid
-                sulfurCube.position.x = Math.round(sulfurCube.position.x);
-                sulfurCube.position.y = Math.round(sulfurCube.position.y);
-                sulfurCube.position.z = Math.round(sulfurCube.position.z);
+                // Grid Snapping
+                block.position.x = Math.round(block.position.x);
+                block.position.y = Math.round(block.position.y);
+                block.position.z = Math.round(block.position.z);
                 
-                scene.add(sulfurCube);
+                scene.add(block);
             }
         });
 
-        // 6. Game Loop (60 FPS)
-        const speed = 0.1;
+        // 6. Game Loop
+        const speed = 0.12;
         function animate() {
             requestAnimationFrame(animate);
 
-            const frontVec = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-            const sideVec = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-            frontVec.y = 0; frontVec.normalize();
-            sideVec.y = 0; sideVec.normalize();
+            if (document.pointerLockElement === document.body) {
+                const front = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                const side = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                front.y = 0; front.normalize();
+                side.y = 0; side.normalize();
 
-            if (move.forward) camera.position.addScaledVector(frontVec, speed);
-            if (move.backward) camera.position.addScaledVector(frontVec, -speed);
-            if (move.left) camera.position.addScaledVector(sideVec, -speed);
-            if (move.right) camera.position.addScaledVector(sideVec, speed);
+                if (move.forward) camera.position.addScaledVector(front, speed);
+                if (move.backward) camera.position.addScaledVector(front, -speed);
+                if (move.left) camera.position.addScaledVector(side, -speed);
+                if (move.right) camera.position.addScaledVector(side, speed);
+            }
 
             renderer.render(scene, camera);
         }
